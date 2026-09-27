@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#16251f" />
+  <title>Bomber Animals</title>
+  <link rel="stylesheet" href="style.css?v=4" />
+</head>
+<body>
+  <main id="app">
+    <section id="authScreen" class="panel auth-panel">
+      <div class="mascot-row" aria-hidden="true">
+        <span class="mascot mascot-dog"></span>
+        <span class="mascot mascot-cat"></span>
+        <span class="mascot mascot-bird"></span>
+      </div>
+      <div class="auth-badge"><span class="dot"></span> Multiplayer Online</div>
+      <div>
+        <h1 class="game-title">Bomber <span>Animals</span></h1>
+        <p class="lead" id="authLead">Entre com sua conta pra jogar.</p>
+      </div>
+
+      <form id="authForm" class="auth-form">
+        <label class="input-icon">
+          <span class="sr-only">Usuário</span>
+          <span class="icon" aria-hidden="true">👤</span>
+          <input id="authUsername" name="username" autocomplete="username" maxlength="20" placeholder="Usuário" required />
+        </label>
+        <label class="input-icon">
+          <span class="sr-only">Senha</span>
+          <span class="icon" aria-hidden="true">🔒</span>
+          <input id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="Senha" required />
+        </label>
+        <div id="authError" class="online-status error hidden"></div>
+        <button type="submit" id="authSubmitBtn" class="primary glow">Entrar</button>
+      </form>
+      <div class="auth-toggle">Não tem conta? <a id="authToggleLink">Cadastre-se</a></div>
+    </section>
+
+    <section id="lobbyScreen" class="panel hidden">
+      <div class="lobby-topbar">
+        <span>Logado como <b id="lobbyUsername"></b></span>
+        <a id="logoutLink">Sair</a>
+      </div>
+      <div>
+        <h1>Bomber Animals</h1>
+        <p class="lead">Crie uma sala pra jogar — sozinho contra bots ou com amigos — ou entre numa sala aberta.</p>
+      </div>
+
+      <div class="menu-actions">
+        <button id="createRoomBtn" class="primary">Criar sala</button>
+      </div>
+      <div id="onlineStatus" class="online-status hidden"></div>
+
+      <div class="online-panel">
+        <div class="join-row">
+          <span>ou entrar com um código:</span>
+          <input id="joinCodeInput" maxlength="4" placeholder="ABCD" autocapitalize="characters" />
+          <button id="joinRoomBtn">Entrar</button>
+        </div>
+      </div>
+
+      <div id="roomList" class="room-list"></div>
+
+      <div class="help">
+        <strong>Desktop:</strong> WASD/setas para mover • Espaço para bomba.<br>
+        <strong>Mobile:</strong> use o direcional e o botão de bomba na tela.
+      </div>
+    </section>
+
+    <section id="roomScreen" class="panel hidden">
+      <div class="room-top-bar">
+        <button id="leaveRoomBtn" aria-label="Voltar à lobby">←</button>
+        <div class="room-code-row">Sala <b id="roomCodeDisplay">----</b></div>
+        <button id="copyRoomLinkBtn">🔗 Copiar link</button>
+        <button id="startRoomBtn" class="primary">▶ Iniciar sala</button>
+      </div>
+      <div id="roomStartedNote" class="online-status hidden">Partida já em andamento — escolha um bicho pra entrar.</div>
+      <div id="onlineSpeciesPicker" class="cards"></div>
+    </section>
+
+    <section id="gameScreen" class="hidden">
+      <header id="hud">
+        <button id="backBtn" aria-label="Voltar">←</button>
+        <div id="playerBadge"></div>
+        <div class="hud-stat"><span>❤️</span><b id="hudLives">3</b></div>
+        <div class="hud-stat"><span>💥</span><b id="hudRange">2</b></div>
+        <div class="hud-stat"><span>💣</span><b id="hudBombs">1</b></div>
+        <div class="hud-stat"><span>⚡</span><b id="hudSpeed">1.0×</b></div>
+      </header>
+
+      <div id="stageWrap">
+        <canvas id="game" width="832" height="704"></canvas>
+        <div id="message" class="game-message hidden">
+          <div>
+            <div id="messageText"></div>
+            <div id="roundEndChoice" class="round-end-choice hidden">
+              <button id="playAgainBtn" class="primary">Jogar de novo</button>
+              <button id="backToRoomBtn">Voltar pra sala</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mobileControls">
+        <div class="dpad">
+          <button data-dir="up" class="up">▲</button>
+          <button data-dir="left" class="left">◀</button>
+          <button data-dir="down" class="down">▼</button>
+          <button data-dir="right" class="right">▶</button>
+        </div>
+        <button id="bombBtn" class="bomb-button" aria-label="Colocar bomba">💣</button>
+      </div>
+    </section>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
