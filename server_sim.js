@@ -149,9 +149,17 @@ function handleAction(room,p){
       if(bomb && !bomb.moving){startBombSlide(bomb,v.d,p);p.kickCharges--;return}
     }
   }
-  const vec={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[p.dir];
-  const tx=gx+vec[0],ty=gy+vec[1];
-  if(p.canBreakCrates && room.blocks.has(tileKey(tx,ty))){
+  tryPlaceBomb(room,p);
+}
+// Species ability, on its own button: only the active powers (croc break, dog recall) do
+// anything here — cat jump and bird ghost are passive once the "power" powerup is picked up.
+function handleAbility(room,p){
+  if(!p.alive)return;
+  const gx=Math.floor(p.x/TILE),gy=Math.floor(p.y/TILE);
+  if(p.canBreakCrates){
+    const vec={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[p.dir];
+    const tx=gx+vec[0],ty=gy+vec[1];
+    if(!room.blocks.has(tileKey(tx,ty)))return;
     room.blocks.delete(tileKey(tx,ty));
     const gotPowerup=maybeSpawnPowerup(room,tx,ty);
     p.stats.crates++;
@@ -159,11 +167,10 @@ function handleAction(room,p){
     if(gotPowerup) awardPoints(p,POINTS.crateWithPowerup);
     return;
   }
-  if(p.canRecallBomb && p.activeBombs>=p.bombCap){
+  if(p.canRecallBomb){
     const b=room.bombs.find(b=>b.owner===p && !b.dead);
-    if(b){b.dead=true;p.activeBombs=Math.max(0,p.activeBombs-1);return}
+    if(b){b.dead=true;p.activeBombs=Math.max(0,p.activeBombs-1)}
   }
-  tryPlaceBomb(room,p);
 }
 
 function attemptAxis(room,p,dx,dy){
@@ -189,14 +196,64 @@ function attemptAxis(room,p,dx,dy){
 }
 function movePlayer(room,p,dx,dy){ attemptAxis(room,p,dx,0); attemptAxis(room,p,0,dy); }
 
+// Grid-assisted movement for humans: the player always walks along the center of a lane,
+// and a small misalignment never blocks a turn — pressing toward an opening slides the player
+// onto that lane's center first (classic Bomberman "corner assist") instead of getting stuck
+// on the corner of a wall.
+const CORNER_ASSIST=TILE*.45; // how far off-center a turn still gets auto-aligned
+function canEnter(room,p,gx,gy){ return !isSolidForPlayer(room,p,gx,gy); }
+function stepAlongAxis(room,p,axis,sign,dist){
+  // axis "x": moving horizontally, lane is the row; axis "y": moving vertically, lane is the column
+  const along=axis==="x"?"x":"y", across=axis==="x"?"y":"x";
+  const gAlong=Math.floor(p[along]/TILE), gAcross=Math.floor(p[across]/TILE);
+  const center=(gAcross+.5)*TILE;
+  const off=p[across]-center;
+  const tileAt=(a,c)=>axis==="x"?[a,c]:[c,a];
+  const aheadOpen=lane=>canEnter(room,p,...tileAt(gAlong+sign,lane));
+  const nudge=(target)=>{
+    const d=target-p[across];
+    const m=Math.sign(d)*Math.min(Math.abs(d),dist);
+    if(across==="x")attemptAxis(room,p,m,0); else attemptAxis(room,p,0,m);
+    return dist-Math.abs(m);
+  };
+  const advance=(d)=>{ if(d<=0)return; if(along==="x")attemptAxis(room,p,sign*d,0); else attemptAxis(room,p,0,sign*d); };
+  if(aheadOpen(gAcross)){
+    // Own lane is open ahead: center on it, then keep walking with whatever distance is left.
+    advance(off?nudge(center):dist);
+    return;
+  }
+  // Own lane is blocked ahead. Still walk up to the wall (to the tile center), and if the
+  // player is leaning toward a neighboring lane that is open, slide into it.
+  const side=Math.sign(off);
+  if(side && Math.abs(off)>TILE*.5-CORNER_ASSIST && aheadOpen(gAcross+side) && canEnter(room,p,...tileAt(gAlong,gAcross+side))){
+    nudge((gAcross+side+.5)*TILE);
+    return;
+  }
+  const edge=(gAlong+.5)*TILE;
+  const room2=sign*(edge-p[along]);
+  if(room2>0){ advance(Math.min(dist,room2)); }
+  else attemptAxis(room,p,along==="x"?sign*dist:0,along==="y"?sign*dist:0); // lets kick-on-bump still trigger
+  if(off)nudge(center);
+}
 function updateHumanFromInput(room,p,dt){
   const v=p.input||{x:0,y:0};
-  if(v.x||v.y){
-    if(Math.abs(v.x)>Math.abs(v.y))p.dir=v.x<0?"left":"right";
-    else p.dir=v.y<0?"up":"down";
-    p.moving=true;
-    movePlayer(room,p,v.x*p.speed*dt,v.y*p.speed*dt);
-  }else p.moving=false;
+  const sx=Math.sign(v.x), sy=Math.sign(v.y);
+  if(!sx && !sy){p.moving=false;return}
+  const dist=p.speed*dt;
+  let axis;
+  if(sx && sy){
+    // Diagonal (the client normally sends a single direction): take whichever direction is
+    // open, keeping the current heading when both are so it doesn't jitter between them.
+    const gx=Math.floor(p.x/TILE),gy=Math.floor(p.y/TILE);
+    const xOpen=canEnter(room,p,gx+sx,gy), yOpen=canEnter(room,p,gx,gy+sy);
+    const curX=p.dir==="left"||p.dir==="right";
+    if(xOpen&&yOpen) axis=curX?"x":"y";
+    else if(xOpen) axis="x"; else if(yOpen) axis="y"; else axis=curX?"x":"y";
+  }else axis=sx?"x":"y";
+  const sign=axis==="x"?sx:sy;
+  p.dir=axis==="x"?(sign<0?"left":"right"):(sign<0?"up":"down");
+  p.moving=true;
+  stepAlongAxis(room,p,axis,sign,dist);
 }
 
 // ---- hand-designed bot AI ----
@@ -375,7 +432,7 @@ function decideBotAction(room,p,gx,gy){
     if(adj.has(tileKey(gx,gy))){
       const target=AI_DIRS.map(v=>({x:gx+v.x,y:gy+v.y,d:v.d})).find(t=>room.blocks.has(tileKey(t.x,t.y)));
       if(target){
-        if(p.canBreakCrates){ p.dir=target.d; handleAction(room,p); }
+        if(p.canBreakCrates){ p.dir=target.d; handleAbility(room,p); }
         else if(hasSafeEscapeIfBombed(room,p,gx,gy)) actAndRetreat(room,p,gx,gy,target.d);
         return;
       }
@@ -631,4 +688,4 @@ function serializeRoom(room){
   };
 }
 
-module.exports = { TILE, COLS, ROWS, SPECIES, SPECIES_ORDER, createRoom, initRound, tick, serializeRoom, handleAction, tryPlaceBomb };
+module.exports = { TILE, COLS, ROWS, SPECIES, SPECIES_ORDER, createRoom, initRound, tick, serializeRoom, handleAction, handleAbility, tryPlaceBomb };

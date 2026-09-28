@@ -157,6 +157,10 @@ function returnToLobby(){
 function triggerAction(){
   if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:"action"}));
 }
+// Species ability (E / ability button) — separate from the bomb so it's never fired by accident.
+function triggerAbility(){
+  if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:"ability"}));
+}
 
 function wireUI(){
   let authMode="login";
@@ -237,9 +241,11 @@ function wireUI(){
     const active=document.activeElement;
     if(active && (active.tagName==="INPUT"||active.tagName==="TEXTAREA")) return;
     const k=e.key.toLowerCase();
-    if(["arrowup","arrowdown","arrowleft","arrowright"," ","w","a","s","d"].includes(k)) e.preventDefault();
+    if(["arrowup","arrowdown","arrowleft","arrowright"," ","w","a","s","d","e"].includes(k)) e.preventDefault();
+    const repeat=state.keys.has(k);
     state.keys.add(k);
     if(k===" " && state.running) triggerAction();
+    if(k==="e" && !repeat && state.running) triggerAbility();
   },{passive:false});
   addEventListener("keyup",e=>state.keys.delete(e.key.toLowerCase()));
 
@@ -256,6 +262,10 @@ function wireUI(){
   document.getElementById("bombBtn").addEventListener("pointerdown",e=>{
     e.preventDefault();
     if(state.running) triggerAction();
+  });
+  document.getElementById("abilityBtn").addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    if(state.running) triggerAbility();
   });
 }
 
@@ -414,13 +424,14 @@ function onOnlineMessage(ev){
     }
   }
 }
+// Movement is always a single cardinal direction: the most recently pressed key that's still
+// held wins (state.keys is a Set, so insertion order = press order). The server then keeps the
+// player centered on the lane and auto-aligns turns, so there's no diagonal sliding into corners.
+const DIR_KEYS={arrowleft:[-1,0],a:[-1,0],arrowright:[1,0],d:[1,0],arrowup:[0,-1],w:[0,-1],arrowdown:[0,1],s:[0,1]};
 function inputVector(){
-  let x=0,y=0;
-  if(state.keys.has("arrowleft")||state.keys.has("a"))x--;
-  if(state.keys.has("arrowright")||state.keys.has("d"))x++;
-  if(state.keys.has("arrowup")||state.keys.has("w"))y--;
-  if(state.keys.has("arrowdown")||state.keys.has("s"))y++;
-  if(x&&y){const q=Math.SQRT1_2;x*=q;y*=q}
+  const held=[...state.keys].filter(k=>DIR_KEYS[k]);
+  if(!held.length)return {x:0,y:0};
+  const [x,y]=DIR_KEYS[held[held.length-1]];
   return {x,y};
 }
 function onlineLoop(now){
@@ -461,6 +472,22 @@ function updateHud(){
   document.getElementById("hudRange").textContent=p.blast;
   document.getElementById("hudBombs").textContent=`${p.bombCap-p.activeBombs}/${p.bombCap}`;
   document.getElementById("hudSpeed").textContent=(p.speed/172).toFixed(1)+"×";
+  updateAbilityButton(p);
+}
+
+const ABILITY_ICONS={recall:"↩️",jump:"🦘",ghost:"👻",break:"🦷"};
+function updateAbilityButton(p){
+  const btn=document.getElementById("abilityBtn");
+  const power=SPECIES[p.species].power;
+  const has={recall:p.canRecallBomb,jump:p.canJumpCrates,ghost:p.ghostBombs,break:p.canBreakCrates}[power];
+  const passive=power==="jump"||power==="ghost";
+  // Recall only does something while one of your bombs is on the field.
+  const ready=has && p.alive && (power!=="recall" || p.activeBombs>0);
+  btn.textContent=ABILITY_ICONS[power];
+  btn.classList.toggle("unavailable",!ready);
+  btn.classList.toggle("passive",!!ready && passive);
+  btn.setAttribute("aria-label",SPECIES[p.species].bonus+(ready?"":" (indisponível)"));
+  btn.title=passive?"Habilidade passiva":"Usar habilidade (E)";
 }
 
 function draw(t){

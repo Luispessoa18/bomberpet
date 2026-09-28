@@ -306,6 +306,8 @@ wss.on("connection", (ws, req) => {
       p.input = { x, y };
     } else if (msg.type === "action") {
       sim.handleAction(roomEntry.sim, p);
+    } else if (msg.type === "ability") {
+      sim.handleAbility(roomEntry.sim, p);
     }
   });
 

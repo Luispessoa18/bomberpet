@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
   <meta name="theme-color" content="#16251f" />
   <title>Bomber Animals</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <main id="app">
@@ -64,8 +64,8 @@
       <div id="roomList" class="room-list"></div>
 
       <div class="help">
-        <strong>Desktop:</strong> WASD/setas para mover • Espaço para bomba.<br>
-        <strong>Mobile:</strong> use o direcional e o botão de bomba na tela.
+        <strong>Desktop:</strong> WASD/setas para mover • Espaço para bomba • E para habilidade.<br>
+        <strong>Mobile:</strong> use o direcional e os botões de bomba e habilidade na tela.
       </div>
     </section>
 
@@ -110,7 +110,10 @@
           <button data-dir="down" class="down">▼</button>
           <button data-dir="right" class="right">▶</button>
         </div>
-        <button id="bombBtn" class="bomb-button" aria-label="Colocar bomba">💣</button>
+        <div class="action-buttons">
+          <button id="abilityBtn" class="ability-button unavailable" aria-label="Usar habilidade">🌟</button>
+          <button id="bombBtn" class="bomb-button" aria-label="Colocar bomba">💣</button>
+        </div>
       </div>
     </section>
   </main>
